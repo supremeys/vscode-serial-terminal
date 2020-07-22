@@ -16,6 +16,16 @@ from the command palette.
 Depends on serialport. This module must be built for a specific node version. To get this right find out what node/electron version
 vscode is running by checking ```Help/About``` and updating .npmrc accordingly.
 
+## API
+Exposed api can be accesed using the following code:
+<!--TODO: Update extension ID-->
+~~~typescript
+let api = extensions.getExtension('serialterminal').exports;
+~~~
+This api exposes the SerialTerminal class which is an implementation of [vscode.Pseudoterminal](https://code.visualstudio.com/api/references/vscode-api#Pseudoterminal) with the constructor
+~~~typescript
+SerialTerminal(COMPort: string, baudRate: number, lineEnd?: string, prompt?: string)
+~~~
 
 ## Known Issues
 
