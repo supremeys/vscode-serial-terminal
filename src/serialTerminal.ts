@@ -86,14 +86,15 @@ export class SerialTerminal implements vscode.Pseudoterminal {
             st.loadCursor();
             st.clearScreen();
             let stringRepr: string = new TextDecoder('utf-8').decode(data);
+
+            // Checks if data ends on a clean line. Used for layout
             if (/(?:\r+\n+[\n\r]*)|(?:\n+\r+[\n\r]*)$/.test(stringRepr)) {
                 st.endsWithNewLine = true;
             } else {
                 st.endsWithNewLine = false;
             }
-            for (let char of stringRepr) {
-                st.writeEmitter.fire(char);
-            }
+
+            st.writeEmitter.fire(stringRepr);
             st.saveCursor();
             st.updateInputArea();
         };
