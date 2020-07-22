@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import { SerialTerminal } from "./serialTerminal";
 import SerialPort = require('serialport');
+import { api } from './api';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -48,7 +49,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 	//TODO: REMOVE
-	//vscode.commands.executeCommand('serialterminal.openTerminal', "COM9", 115200, undefined, undefined);
+	vscode.commands.executeCommand('serialterminal.openTerminal', "COM9", 115200, undefined, undefined);
+
+	//Export api defined in api.ts
+	return api;
 }
 
 // this method is called when your extension is deactivated
