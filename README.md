@@ -20,6 +20,7 @@ vscode is running by checking ```Help/About``` and updating .npmrc accordingly.
 ## Known Issues
 
 - Terminal input that covers more than the entire screen won't be properly rendered.
+- Clear terminal will clear all text and scroll buffer, but not cursor position.
 
 ## Release Notes
 
