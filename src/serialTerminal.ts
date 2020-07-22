@@ -160,9 +160,11 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                     this.currentInputLine = part1 + part2;
                     this.updateInputArea();
                 }
-                charsHandled = backspaceMatch[0].length;
+                charsHandled = deleteMatch[0].length;
                 continue;
             }
+
+            
 
             //// Handle arrows
             let arrowMatches: RegExpMatchArray = arrowRegex.exec(data) ?? [];
