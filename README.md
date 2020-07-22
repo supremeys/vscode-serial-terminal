@@ -4,7 +4,7 @@ This is the README for your extension "serialterminal". After writing up a brief
 
 ## Features
 
-Adds a simple serial terminal to vscode. Open by
+Adds a simple serial terminal to vscode. Open by running
 ~~~
 Serial Terminal: Open terminal
 ~~~
@@ -14,12 +14,12 @@ from the command palette.
 
 ### Dev
 Depends on serialport. This module must be built for a specific node version. To get this right find out what node/electron version
-vscode is running by checking ```Help/About```.
+vscode is running by checking ```Help/About``` and updating .npmrc accordingly.
 
 
 ## Known Issues
 
-Please report any issues here
+- Terminal input that covers more than the entire screen won't be properly rendered.
 
 ## Release Notes
 
