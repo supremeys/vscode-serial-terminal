@@ -1,4 +1,4 @@
-# serialterminal README
+# Serial terminal for VSCode
 
 This is the README for your extension "serialterminal". After writing up a brief description, we recommend including the following sections.
 
@@ -33,6 +33,8 @@ SerialTerminal(COMPort: string, baudRate: number, lineEnd?: string, prompt?: str
 
 - Terminal input that covers more than the entire screen won't be properly rendered.
 - Clear terminal will clear all text and scroll buffer, but not cursor position.
+  - Cause found: VSCode uses Xterm.js' clear function. This removes all content and puts prompt line on top but doesn't send any obvious signals to the
+    terminal. Workaround pending
 
 ## Release Notes
 
