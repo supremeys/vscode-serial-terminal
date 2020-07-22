@@ -48,7 +48,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 	//TODO: REMOVE
-	vscode.commands.executeCommand('serialterminal.openTerminal', "COM7", 115200, undefined, undefined);
+	//vscode.commands.executeCommand('serialterminal.openTerminal', "COM9", 115200, undefined, undefined);
 }
 
 // this method is called when your extension is deactivated

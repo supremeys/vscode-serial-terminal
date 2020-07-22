@@ -1,5 +1,6 @@
 
 import * as serialPort from 'serialport';
+import { TextDecoder } from 'util';
 import * as vscode from 'vscode';
 
 // Text manipulation sequences
@@ -11,14 +12,8 @@ const deleteRegex: RegExp = /^\033\[3~/;
 const arrowRegex: RegExp = /^\033\[([ABCD])/;
 const gotoEndRegex: RegExp = /^\033\[([HF])/; //End and Home
 
+const cursorReportRegex: RegExp = /^\033\[(\d+);(\d+)R/;
 
-/**
- * Interface for keeping track of a simple cursor
- */
-interface Cursor {
-    x: number;
-    y: number;
-}
 
 export class SerialTerminal implements vscode.Pseudoterminal {
 
@@ -26,7 +21,9 @@ export class SerialTerminal implements vscode.Pseudoterminal {
     private closeEmitter = new vscode.EventEmitter<void>();
     onDidWrite: vscode.Event<string> = this.writeEmitter.event;
     onDidClose?: vscode.Event<number | void> | undefined = this.closeEmitter.event;
-    onDidOverrideDimensions?: vscode.Event<vscode.TerminalDimensions | undefined> | undefined;
+
+    private dimensionEmitter = new vscode.EventEmitter<vscode.TerminalDimensions>();
+    //onDidOverrideDimensions = this.dimensionEmitter.event;
 
     // serialPort specific variables
     private serial: serialPort;
@@ -37,17 +34,16 @@ export class SerialTerminal implements vscode.Pseudoterminal {
 
     // Properties used for tracking and rendering terminal input
     private currentInputLine: string = "";
-    private inputAreaLine: number = 5;
     private inputIndex: number = 0;
 
     // Properties used for tracking data
-    private currentDataLine: string = "\n\r";
+    private endsWithNewLine: boolean = false;
 
     private dimensions: vscode.TerminalDimensions | undefined;
 
     // Keeps track of already sent data to enable arrow up/down to scroll through it
-    private sendBuffer: string[] = [];
-    private sendBufferIndex: number = 0;
+    private prevCommands: string[] = [];
+    private prevCommandsIndex: number = 0;
 
     constructor(COMPort: string, baudRate: number, lineEnd?: string, prompt?: string) {
         this.serial = new serialPort(COMPort, {
@@ -60,13 +56,17 @@ export class SerialTerminal implements vscode.Pseudoterminal {
 
     open(initialDimensions: vscode.TerminalDimensions | undefined): void {
         this.dimensions = initialDimensions;
-        this.writeEmitter.fire(`Serial terminal\r\nPort: ${this.serial.path}\r\nBaud rate: ${this.serial.baudRate}`);
+        SerialTerminal.handleData(this)(Buffer.from(
+            `\rSerial terminal
+            \rPort: ${this.serial.path}
+            \rBaud rate: ${this.serial.baudRate}\r\n\n`
+        ));
         if (!this.serial.isOpen) {
             this.serial.open(SerialTerminal.writeError(this));
         }
         this.serial.on('data', SerialTerminal.handleData(this));
         this.serial.on('error', SerialTerminal.writeError(this));
-        this.printCurrentLine();
+        this.updateInputArea();
     }
 
     close(): void {
@@ -83,26 +83,19 @@ export class SerialTerminal implements vscode.Pseudoterminal {
 
     private static handleData(st: SerialTerminal): (data: Buffer) => void {
         return (data: Buffer) => {
-            st.rawMoveCursor(0, st.inputAreaLine);
-            st.clearLine();
-            st.writeEmitter.fire(st.currentDataLine);
-            for (let b of data) {
-                let char: string = String.fromCharCode(b);
-                st.writeEmitter.fire(char);
-                if (char === "\n") {
-                    st.clearLine();
-                    st.writeEmitter.fire("\r");
-                    st.increaseDataArea();
-                    continue;
-                }
-                if (st.dimensions && st.currentDataLine.length > st.dimensions.columns) {
-                    st.clearLine();
-                    st.writeEmitter.fire("\r\n");
-                    st.increaseDataArea();
-                    continue;
-                }
-                st.currentDataLine += char;
+            st.loadCursor();
+            st.clearScreen();
+            let stringRepr: string = new TextDecoder('utf-8').decode(data);
+            if (/(?:\r+\n+[\n\r]*)|(?:\n+\r+[\n\r]*)$/.test(stringRepr)) {
+                st.endsWithNewLine = true;
+            } else {
+                st.endsWithNewLine = false;
             }
+            for (let char of stringRepr) {
+                st.writeEmitter.fire(char);
+            }
+            st.saveCursor();
+            st.updateInputArea();
         };
     }
 
@@ -110,8 +103,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
         let codes = "";
         for (let c of data) {
             codes += c.charCodeAt(0) + " ";
-        } console.log(codes);
-        console.log(data);
+        }
 
         let firstRun = true;
         let charsHandled: number = 0;
@@ -126,19 +118,20 @@ export class SerialTerminal implements vscode.Pseudoterminal {
             //// Handle enter
             let enterMatch: RegExpMatchArray | null = enterRegex.exec(data);
             if (enterMatch) {
-                this.printCurrentLine();
-                let lineContent: string = this.currentInputLine.substring(this.prompt.length);
-                this.serial.write(lineContent + this.lineEnd);
-                if (lineContent && (this.sendBuffer.length <= 0 || this.sendBuffer[this.sendBuffer.length - 1] !== lineContent)) {
-                    this.sendBuffer.push(this.currentInputLine);
+                this.serial.write(this.currentInputLine + this.lineEnd);
+                this.serial.drain();
+                if (this.currentInputLine && (this.prevCommands.length <= 0 || this.prevCommands[this.prevCommands.length - 1] !== this.currentInputLine)) {
+                    this.prevCommands.push(this.currentInputLine);
                 }
-                this.sendBufferIndex = this.sendBuffer.length;
-                this.inputAreaLine++;
+                if (!this.endsWithNewLine) {
+                    SerialTerminal.handleData(this)(Buffer.from("\r\n"));
+                }
+                SerialTerminal.handleData(this)(Buffer.from(this.prompt + this.currentInputLine + "\r\n"));
+                this.prevCommandsIndex = this.prevCommands.length;
                 this.inputIndex = 0;
-                this.writeEmitter.fire("\r\n");
                 this.currentInputLine = "";
-                this.printCurrentLine();
                 charsHandled = enterMatch[0].length;
+                this.updateInputArea();
                 continue;
             }
 
@@ -151,7 +144,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                     let part2: string = this.currentInputLine.slice(this.inputIndex);
                     this.currentInputLine = part1 + part2;
                     this.inputIndex--;
-                    this.printCurrentLine();
+                    this.updateInputArea();
                 }
                 charsHandled = backspaceMatch[0].length;
                 continue;
@@ -164,7 +157,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                     let part1: string = this.currentInputLine.slice(0, this.inputIndex);
                     let part2: string = this.currentInputLine.slice(this.inputIndex + 1);
                     this.currentInputLine = part1 + part2;
-                    this.printCurrentLine();
+                    this.updateInputArea();
                 }
                 charsHandled = backspaceMatch[0].length;
                 continue;
@@ -175,22 +168,20 @@ export class SerialTerminal implements vscode.Pseudoterminal {
             for (let arrow of arrowMatches) {
                 switch (arrow) {
                     case "A": { // Up
-                        if (this.sendBufferIndex > 0) {
-                            this.sendBufferIndex -= 1;
-                            this.currentInputLine = this.sendBuffer[this.sendBufferIndex];
+                        if (this.prevCommandsIndex > 0 && this.prevCommandsIndex <= this.prevCommands.length) {
+                            this.prevCommandsIndex -= 1;
+                            this.currentInputLine = this.prevCommands[this.prevCommandsIndex];
                             this.inputIndex = 0;
-                            this.printCurrentLine();
+                            this.updateInputArea();
                         }
                         break;
                     } case "B": { // Down
-                        if (this.sendBufferIndex <= this.sendBuffer.length) {
-                            this.currentInputLine = this.prompt;
-                            if (this.sendBufferIndex < this.sendBuffer.length - 1) {
-                                this.sendBufferIndex += 1;
-                                this.currentInputLine = this.sendBuffer[this.sendBufferIndex];
-                            }
+                        if (this.prevCommandsIndex >= 0 && this.prevCommandsIndex < this.prevCommands.length) {
+                            this.prevCommandsIndex += 1;
+                            this.currentInputLine = this.prevCommands[this.prevCommandsIndex] ?? "";
+
                             this.inputIndex = 0;
-                            this.printCurrentLine();
+                            this.updateInputArea();
                         }
                         break;
                     } case "C": { // Right
@@ -198,14 +189,14 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                         if (this.inputIndex >= this.currentInputLine.length) {
                             this.inputIndex = this.currentInputLine.length;
                         }
-                        this.updateCursor(this.inputAreaLine, this.inputIndex);
+                        this.updateCursor(this.inputIndex);
                         break;
                     } case "D": { // Left
                         this.inputIndex--;
                         if (this.inputIndex < 0) {
                             this.inputIndex = 0;
                         }
-                        this.updateCursor(this.inputAreaLine, this.inputIndex);
+                        this.updateCursor(this.inputIndex);
                         break;
                     }
                 }
@@ -220,14 +211,22 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                 switch (gotoEndMatch[1]) {
                     case ("H"): { //Home
                         this.inputIndex = 0;
-                        this.updateCursor(this.inputAreaLine, this.inputIndex);
+                        this.updateCursor(this.inputIndex);
                         break;
                     } case ("F"): { //End
                         this.inputIndex = this.currentInputLine.length;
-                        this.updateCursor(this.inputAreaLine, this.inputIndex);
+                        this.updateCursor(this.inputIndex);
                         break;
                     }
                 }
+                continue;
+            }
+
+            //// Handle cursor position reports
+            let crMatch = cursorReportRegex.exec(data);
+            if (crMatch && crMatch.length >= 3) {
+                console.log(`Line: ${crMatch[1]} Pos: ${crMatch[2]}`);
+                charsHandled = crMatch[0].length;
                 continue;
             }
 
@@ -235,48 +234,72 @@ export class SerialTerminal implements vscode.Pseudoterminal {
             let char: string = data.charAt(0);
             this.inputIndex++;
             this.currentInputLine = this.currentInputLine.substring(0, this.inputIndex - 1) + char + this.currentInputLine.substring(this.inputIndex - 1);
-            this.printCurrentLine();
+            this.updateInputArea();
             charsHandled = 1;
         }
     }
 
-
-    private updateCursor(startLine: number, index: number) {
-        index++;
+    private updateCursor(index: number) {
         index += this.prompt.length;
+        this.loadCursor();
+        this.writeEmitter.fire("\r");
         if (this.dimensions) {
-            this.rawMoveCursor(index % this.dimensions.columns, startLine + Math.trunc(index / this.dimensions.columns));
+            let lineDelta: number = Math.trunc(index / this.dimensions.columns);
+            this.dimensionEmitter.fire({ columns: this.dimensions.columns, rows: this.dimensions.rows + lineDelta });
+            this.moveCursor("d", lineDelta);
+            this.moveCursor("r", index % this.dimensions.columns);
         } else {
-            index += this.prompt.length;
-            this.rawMoveCursor(index, startLine);
+            this.moveCursor("r", index);
+        }
+        this.writeEmitter.fire("\u001b[6n");
+    }
+
+    private moveCursor(direction: "u" | "d" | "l" | "r", amount: number = 1) {
+        if (amount < 0) {
+            throw new Error("Amount must be non-negative");
+        }
+        if (amount === 0) { return; }
+        switch (direction) {
+            case "u": {
+                this.writeEmitter.fire(`\u001b[${amount}A`);
+                break;
+            } case "d": {
+                this.writeEmitter.fire(`\u001b[${amount}B`);
+                break;
+            } case "r": {
+                this.writeEmitter.fire(`\u001b[${amount}C`);
+                break;
+            } case "l": {
+                this.writeEmitter.fire(`\u001b[${amount}D`);
+                break;
+            } default: {
+                throw new Error("Invalid direction " + direction);
+            }
         }
     }
 
-    private rawMoveCursor(x: number, y: number) {
-        this.writeEmitter.fire(`\u001b[${y};${x}H`);
+    private updateInputArea() {
+        this.loadCursor();
+        if (!this.endsWithNewLine) {
+            this.writeEmitter.fire("\r\n");
+        }
+        this.writeEmitter.fire("\u001b[6n");
+        this.clearScreen();
+        this.writeEmitter.fire(this.prompt + this.currentInputLine);
+        this.updateCursor(this.inputIndex);
     }
 
 
-    private printCurrentLine() {
-        this.rawMoveCursor(0, this.inputAreaLine);
-        this.clearScreen();
-        this.writeEmitter.fire(this.prompt + this.currentInputLine);
-        this.updateCursor(this.inputAreaLine, this.inputIndex);
+    private saveCursor() {
+        this.writeEmitter.fire("\u001b[s");
+    }
+
+    private loadCursor() {
+        this.writeEmitter.fire("\u001b[u");
     }
 
     private clearScreen(level: number = 0) {
         this.writeEmitter.fire(`\u001b[${level}J`);
-    }
-
-    private clearLine(level: number = 2) {
-        this.writeEmitter.fire(`\u001b[${level}K`);
-    }
-
-    private increaseDataArea() {
-        this.currentDataLine = "";
-        this.clearScreen();
-        this.inputAreaLine++;
-        this.printCurrentLine();
     }
 
     private static writeError(st: SerialTerminal) {
@@ -290,6 +313,6 @@ export class SerialTerminal implements vscode.Pseudoterminal {
 
     setDimensions(newDims: vscode.TerminalDimensions) {
         this.dimensions = newDims;
-        this.printCurrentLine();
+        this.updateInputArea();
     }
 }
