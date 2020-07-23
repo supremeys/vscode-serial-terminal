@@ -31,5 +31,3 @@ export function unescape(original: string): string {
     }
     return original;
 }
-
-unescape("\\r\\n");
