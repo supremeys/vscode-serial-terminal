@@ -10,8 +10,7 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:serialterminal.openTerminal",
-		"*"
+		"onCommand:serialterminal.openTerminal"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -23,20 +22,37 @@
 			},
 			{
 				"command": "serialterminal.setPrompt",
-				"title": "Set prompt for active serial terminal",
+				"title": "Set prompt for active terminal",
 				"category": "Serial terminal"
 			},
 			{
 				"command": "serialterminal.setLineEnd",
-				"title": "Set line terminator for active serial terminal",
+				"title": "Set line terminator for active terminal",
 				"category": "Serial terminal"
 			},
 			{
 				"command": "serialterminal.toggleHexTranslation",
-				"title": "Toggle hex translation for active serial terminal",
+				"title": "Toggle hex translation for active terminal",
 				"category": "Serial terminal"
 			}
 		],
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "serialterminal.setPrompt",
+					"when": "terminalIsOpen"
+				},
+				{
+					"command": "serialterminal.setLineEnd",
+					"when": "terminalIsOpen"
+				},
+				{
+					"command": "serialterminal.toggleHexTranslation",
+					"when": "terminalIsOpen"
+				}
+			]
+		}
+		,
 		"configuration": {
 			"title": "Serial Terminal",
 			"properties": {
