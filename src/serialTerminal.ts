@@ -14,6 +14,23 @@ const gotoEndRegex: RegExp = /^\033\[([HF])/; //End and Home
 
 const cursorReportRegex: RegExp = /^\033\[(\d+);(\d+)R/;
 
+// Commands
+interface Command {
+    regex: RegExp;
+    description?: string;
+    func: (st: SerialTerminal) => any;
+}
+
+let commands: { [key: string]: Command } = {
+    "clear": {
+        regex: /^(?:clear|cls)$/,
+        func: (st: SerialTerminal) => {
+            st.clear();
+        },
+        description: "Clears the screen"
+    }
+};
+
 
 export class SerialTerminal implements vscode.Pseudoterminal {
 
@@ -119,8 +136,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
             //// Handle enter
             let enterMatch: RegExpMatchArray | null = enterRegex.exec(data);
             if (enterMatch) {
-                this.serial.write(this.currentInputLine + this.lineEnd);
-                this.serial.drain();
+
                 if (this.currentInputLine && (this.prevCommands.length <= 0 || this.prevCommands[this.prevCommands.length - 1] !== this.currentInputLine)) {
                     this.prevCommands.push(this.currentInputLine);
                 }
@@ -128,6 +144,18 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                     SerialTerminal.handleData(this)(Buffer.from("\r\n"));
                 }
                 SerialTerminal.handleData(this)(Buffer.from(this.prompt + this.currentInputLine + "\r\n"));
+                // Check if string is a command
+                let isCommand = false;
+                for (let c of Object.keys(commands)) {
+                    if (commands[c].regex.test(this.currentInputLine)) {
+                        commands[c].func(this);
+                        isCommand = true;
+                    }
+                }
+                if (!isCommand) {
+                    this.serial.write(this.currentInputLine + this.lineEnd);
+                    this.serial.drain();
+                };
                 this.prevCommandsIndex = this.prevCommands.length;
                 this.inputIndex = 0;
                 this.currentInputLine = "";
@@ -164,7 +192,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                 continue;
             }
 
-            
+
 
             //// Handle arrows
             let arrowMatches: RegExpMatchArray = arrowRegex.exec(data) ?? [];
@@ -174,7 +202,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                         if (this.prevCommandsIndex > 0 && this.prevCommandsIndex <= this.prevCommands.length) {
                             this.prevCommandsIndex -= 1;
                             this.currentInputLine = this.prevCommands[this.prevCommandsIndex];
-                            this.inputIndex = 0;
+                            this.inputIndex = this.currentInputLine.length;
                             this.updateInputArea();
                         }
                         break;
@@ -183,7 +211,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                             this.prevCommandsIndex += 1;
                             this.currentInputLine = this.prevCommands[this.prevCommandsIndex] ?? "";
 
-                            this.inputIndex = 0;
+                            this.inputIndex = this.currentInputLine.length;;
                             this.updateInputArea();
                         }
                         break;
@@ -303,6 +331,14 @@ export class SerialTerminal implements vscode.Pseudoterminal {
 
     private clearScreen(level: number = 0) {
         this.writeEmitter.fire(`\u001b[${level}J`);
+    }
+
+    clear() {
+        this.prevCommandsIndex = this.prevCommands.length;
+        this.inputIndex = 0;
+        this.currentInputLine = "";
+        this.writeEmitter.fire("\u001bc");
+        this.saveCursor();
     }
 
     private static writeError(st: SerialTerminal) {
