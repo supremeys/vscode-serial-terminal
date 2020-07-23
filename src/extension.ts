@@ -1,16 +1,11 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { SerialTerminal } from "./serialTerminal";
 import SerialPort = require('serialport');
 import { api } from './api';
 import * as util from './util';
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
+
 export async function activate(context: vscode.ExtensionContext) {
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
 
 	let disposable = vscode.commands.registerCommand('serialterminal.openTerminal', async (portPath?: string, baudRate?: number, translateHex?: boolean, lineEnd?: string, prompt?: string) => {
 		// Resolve port path
@@ -70,8 +65,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(disposable);
-	//TODO: REMOVE
-	vscode.commands.executeCommand('serialterminal.openTerminal', "COM9", 115200);
 
 	//Export api defined in api.ts
 	return api;

@@ -300,7 +300,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
             //// Handle cursor position reports
             let crMatch = cursorReportRegex.exec(data);
             if (crMatch && crMatch.length >= 3) {
-                console.log(`Line: ${crMatch[1]} Pos: ${crMatch[2]}`);
+                //console.log(`Line: ${crMatch[1]} Pos: ${crMatch[2]}`);
                 charsHandled = crMatch[0].length;
                 continue;
             }
