@@ -45,10 +45,10 @@ export class SerialTerminal implements vscode.Pseudoterminal {
 
     // serialPort specific variables
     private serial: serialPort;
-    public lineEnd: string;
+    private lineEnd: string;
 
     // Prompt to be placed before user written line
-    public prompt: string;
+    private prompt: string;
 
     // Properties used for tracking and rendering terminal input
     private currentInputLine: string = "";
@@ -78,7 +78,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
 
     open(initialDimensions: vscode.TerminalDimensions | undefined): void {
         this.dimensions = initialDimensions;
-        this.handelDataAsText(
+        this.handleDataAsText(
             `\rSerial terminal
             \rPort: ${this.serial.path}
             \rBaud rate: ${this.serial.baudRate}\r\n\n`
@@ -90,21 +90,22 @@ export class SerialTerminal implements vscode.Pseudoterminal {
         this.serial.on('error', SerialTerminal.writeError(this));
         this.serial.on('close', (err) => {
 
-            this.handelDataAsText("\r\nPort closed.");
-            if (err.disconnected) { // Device was disconnected, attempt to reconnect
-                this.handelDataAsText(" Device disconnected.");
+            this.handleDataAsText("\r\nPort closed.");
+            if (Object.keys(err).includes("disconnected") && err.disconnected) { // Device was disconnected, attempt to reconnect
+                this.handleDataAsText(" Device disconnected.");
                 this.reconnectInterval = setInterval(async () => { // Attempt to reopen
                     let availablePorts = await SerialPort.list();
                     for (let port of availablePorts) {
                         if (port.path === this.serial.path) {
-                            this.handelDataAsText(`\r\nDevice reconnected at port ${this.serial.path}.\r\n`);
+                            if (!this.endsWithNewLine) { this.handleDataAsText("\r\n"); };
+                            this.handleDataAsText(`Device reconnected at port ${this.serial.path}.\r\n`);
                             this.serial.open();
                             break;
                         }
                     }
                 }, 1000);
             }
-            this.handelDataAsText("\r\n");
+            this.handleDataAsText("\r\n");
         });
         this.serial.on('open', (err) => {
             if (this.reconnectInterval) {
@@ -156,7 +157,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
         this.updateInputArea();
     };
 
-    private handelDataAsText(data: string) {
+    private handleDataAsText(data: string) {
         let thOld = this.translateHex;
         this.translateHex = true;
         this.handleData(Buffer.from(data));
@@ -185,11 +186,14 @@ export class SerialTerminal implements vscode.Pseudoterminal {
             if (enterMatch) {
                 if (this.currentInputLine && (this.prevCommands.length <= 0 || this.prevCommands[this.prevCommands.length - 1] !== this.currentInputLine)) {
                     this.prevCommands.push(this.currentInputLine);
+                    if (this.prevCommands.length > 1000) {
+                        this.prevCommands.shift();
+                    }
                 }
                 if (!this.endsWithNewLine) {
-                    this.handelDataAsText("\r\n");
+                    this.handleDataAsText("\r\n");
                 }
-                this.handelDataAsText(this.prompt + this.currentInputLine + "\r\n");
+                this.handleDataAsText(this.prompt + this.currentInputLine + "\r\n");
                 // Check if string is a command
                 let isCommand = false;
                 for (let c of Object.keys(commands)) {
@@ -317,7 +321,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
     private updateCursor(index: number) {
         index += this.prompt.length;
         this.loadCursor();
-        if (!this.endsWithNewLine){
+        if (!this.endsWithNewLine) {
             this.moveCursor("d", 1);
         }
         this.writeEmitter.fire("\r");
@@ -328,7 +332,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
         } else {
             this.moveCursor("r", index);
         }
-        
+
     }
 
     private moveCursor(direction: "u" | "d" | "l" | "r", amount: number = 1) {
@@ -360,7 +364,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
         if (!this.endsWithNewLine) {
             this.writeEmitter.fire("\r\n");
         }
-        
+
         this.clearScreen();
         this.writeEmitter.fire(this.prompt + this.currentInputLine);
         this.updateCursor(this.inputIndex);
@@ -379,7 +383,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
         this.writeEmitter.fire(`\u001b[${level}J`);
     }
 
-    clear() {
+    public clear() {
         this.prevCommandsIndex = this.prevCommands.length;
         this.inputIndex = 0;
         this.currentInputLine = "";
@@ -399,5 +403,22 @@ export class SerialTerminal implements vscode.Pseudoterminal {
     setDimensions(newDims: vscode.TerminalDimensions) {
         this.dimensions = newDims;
         this.updateInputArea();
+    }
+
+    public setPrompt(prompt: string): void {
+        this.prompt = prompt;
+        this.updateInputArea();
+    }
+
+    public setLineEnd(le: string): void {
+        this.lineEnd = le;
+    }
+
+    public setHexTranslate(state: boolean): void {
+        this.translateHex = state;
+    }
+
+    public toggleHexTranslate(): void {
+        this.setHexTranslate(!this.translateHex);
     }
 }

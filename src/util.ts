@@ -1,7 +1,7 @@
 
 const escapeRe = /\\(.)/g;
 const hexCharRe = /\\x([a-fA-F0-9]{2})/;
-const uCharRe = /\\([1-7][0-7]{0,2}|[0-7]{2,3})/;
+const uCharRe = /\\u([a-fA-F0-9]{4})/;
 
 export function unescape(original: string): string {
 

@@ -20,6 +20,21 @@
 				"command": "serialterminal.openTerminal",
 				"title": "Open terminal",
 				"category": "Serial terminal"
+			},
+			{
+				"command": "serialterminal.setPrompt",
+				"title": "Set prompt for active serial terminal",
+				"category": "Serial terminal"
+			},
+			{
+				"command": "serialterminal.setLineEnd",
+				"title": "Set line terminator for active serial terminal",
+				"category": "Serial terminal"
+			},
+			{
+				"command": "serialterminal.toggleHexTranslation",
+				"title": "Toggle hex translation for active serial terminal",
+				"category": "Serial terminal"
 			}
 		],
 		"configuration": {

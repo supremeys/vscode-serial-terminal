@@ -4,10 +4,12 @@ import SerialPort = require('serialport');
 import { api } from './api';
 import * as util from './util';
 
+// Lookup table for linking vscode terminals to SerialTerminal instances
+export let terminalRegistry: { [key: string]: SerialTerminal } = {};
 
 export async function activate(context: vscode.ExtensionContext) {
 
-	let disposable = vscode.commands.registerCommand('serialterminal.openTerminal', async (portPath?: string, baudRate?: number, translateHex?: boolean, lineEnd?: string, prompt?: string) => {
+	let openTerminalCommand = vscode.commands.registerCommand('serialterminal.openTerminal', async (portPath?: string, baudRate?: number, translateHex?: boolean, lineEnd?: string, prompt?: string) => {
 		// Resolve port path
 		let chosenPortPath: string | undefined = portPath;
 		if (!chosenPortPath) {
@@ -61,10 +63,45 @@ export async function activate(context: vscode.ExtensionContext) {
 			pty: st
 		});
 		terminal.show();
+		terminalRegistry[terminal.name] = st;
 		return terminal;
 	});
 
-	context.subscriptions.push(disposable);
+	let setPromptCommand = vscode.commands.registerCommand('serialterminal.setPrompt', async () => {
+		let st = getActiveSerial();
+		if (st) {
+			let newPrompt = await vscode.window.showInputBox({ placeHolder: "New prompt" });
+			if (newPrompt !== undefined) {
+				newPrompt = util.unescape(newPrompt);
+				st.setPrompt(newPrompt);
+			}
+		}
+	});
+
+	let setLineEndCommand = vscode.commands.registerCommand('serialterminal.setLineEnd', async () => {
+		let st = getActiveSerial();
+		if (st) {
+			let newLineEnd = await vscode.window.showInputBox({ placeHolder: "New line terminator" });
+			if (newLineEnd !== undefined) {
+				newLineEnd = util.unescape(newLineEnd);
+				st.setLineEnd(newLineEnd);
+			}
+		}
+	});
+
+	let toggleHexTranslationCommand = vscode.commands.registerCommand('serialterminal.toggleHexTranslation', () => {
+		let st = getActiveSerial();
+		if (st) {
+			st.toggleHexTranslate();
+		}
+	});
+
+	context.subscriptions.push(
+		openTerminalCommand,
+		setPromptCommand,
+		setLineEndCommand,
+		toggleHexTranslationCommand,
+	);
 
 	//Export api defined in api.ts
 	return api;
@@ -72,3 +109,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
 // this method is called when your extension is deactivated
 export function deactivate() { }
+
+function getActiveSerial(): SerialTerminal | undefined {
+	let activeTerminal = vscode.window.activeTerminal;
+	if (activeTerminal === undefined) { vscode.window.showErrorMessage("No active terminal"); return; };
+	if (!Object.keys(terminalRegistry).includes(activeTerminal.name)) {
+		vscode.window.showErrorMessage("Active terminal is not a registered serial terminal");
+		return;
+	};
+	return terminalRegistry[activeTerminal.name];
+}
