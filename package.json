@@ -21,7 +21,27 @@
 				"title": "Open terminal",
 				"category": "Serial terminal"
 			}
-		]
+		],
+		"configuration": {
+			"title": "Serial Terminal",
+			"properties": {
+				"serialTerminal.defaultPrompt": {
+					"description": "Prompt added to start of input area. Will be rendered in terminal but will NOT be added to sent data. Allows escape characters (\\r, \\n etc.), hex representation (\\x6F, \\xF8 etc.) and unicode representation (\\u006F, \\u00F8 etc.)",
+					"type": "string",
+					"default": ">: "
+				},
+				"serialTerminal.defaultLineTerminator": {
+					"description": "Text added to end of all sent lines. Will be appended to sent data but will not be rendered in terminal. Allows escape characters (\\r, \\n etc.), hex representation (\\x6F, \\xF8 etc.) and unicode representation (\\u006F, \\u00F8 etc.)",
+					"type": "string",
+					"default": "\\r\\n"
+				},
+				"serialTerminal.translateHex": {
+					"description": "Set to true to translate incomming hex data. Set to false to output raw hex.",
+					"type": "boolean",
+					"default": true
+				}
+			}
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",

@@ -1,5 +1,6 @@
 
 import * as serialPort from 'serialport';
+import SerialPort = require('serialport');
 import { TextDecoder } from 'util';
 import * as vscode from 'vscode';
 
@@ -34,13 +35,13 @@ let commands: { [key: string]: Command } = {
 
 export class SerialTerminal implements vscode.Pseudoterminal {
 
+    // Fire to write to terminal
     private writeEmitter = new vscode.EventEmitter<string>();
-    private closeEmitter = new vscode.EventEmitter<void>();
     onDidWrite: vscode.Event<string> = this.writeEmitter.event;
-    onDidClose?: vscode.Event<number | void> | undefined = this.closeEmitter.event;
 
-    private dimensionEmitter = new vscode.EventEmitter<vscode.TerminalDimensions>();
-    //onDidOverrideDimensions = this.dimensionEmitter.event;
+    // Fire to close terminal
+    private closeEmitter = new vscode.EventEmitter<void>();
+    onDidClose?: vscode.Event<number | void> | undefined = this.closeEmitter.event;
 
     // serialPort specific variables
     private serial: serialPort;
@@ -56,13 +57,17 @@ export class SerialTerminal implements vscode.Pseudoterminal {
     // Properties used for tracking data
     private endsWithNewLine: boolean = false;
 
+    // Current size of terminal. Used for detecting line wraps to allow multi-line input
     private dimensions: vscode.TerminalDimensions | undefined;
 
     // Keeps track of already sent data to enable arrow up/down to scroll through it
     private prevCommands: string[] = [];
     private prevCommandsIndex: number = 0;
 
-    constructor(COMPort: string, baudRate: number, lineEnd?: string, prompt?: string) {
+    // Used to automatically attempt to reconnect when device is disconnected
+    private reconnectInterval: NodeJS.Timeout | undefined;
+
+    constructor(COMPort: string, baudRate: number, private translateHex = true, lineEnd?: string, prompt?: string) {
         this.serial = new serialPort(COMPort, {
             autoOpen: false,
             baudRate: baudRate,
@@ -73,16 +78,39 @@ export class SerialTerminal implements vscode.Pseudoterminal {
 
     open(initialDimensions: vscode.TerminalDimensions | undefined): void {
         this.dimensions = initialDimensions;
-        SerialTerminal.handleData(this)(Buffer.from(
+        this.handelDataAsText(
             `\rSerial terminal
             \rPort: ${this.serial.path}
             \rBaud rate: ${this.serial.baudRate}\r\n\n`
-        ));
+        );
         if (!this.serial.isOpen) {
             this.serial.open(SerialTerminal.writeError(this));
         }
-        this.serial.on('data', SerialTerminal.handleData(this));
+        this.serial.on('data', this.handleData);
         this.serial.on('error', SerialTerminal.writeError(this));
+        this.serial.on('close', (err) => {
+
+            this.handelDataAsText("\r\nPort closed.");
+            if (err.disconnected) { // Device was disconnected, attempt to reconnect
+                this.handelDataAsText(" Device disconnected.");
+                this.reconnectInterval = setInterval(async () => { // Attempt to reopen
+                    let availablePorts = await SerialPort.list();
+                    for (let port of availablePorts) {
+                        if (port.path === this.serial.path) {
+                            this.handelDataAsText(`\r\nDevice reconnected at port ${this.serial.path}.\r\n`);
+                            this.serial.open();
+                            break;
+                        }
+                    }
+                }, 1000);
+            }
+            this.handelDataAsText("\r\n");
+        });
+        this.serial.on('open', (err) => {
+            if (this.reconnectInterval) {
+                clearInterval(this.reconnectInterval);
+            }
+        });
         this.updateInputArea();
     }
 
@@ -94,28 +122,47 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                 }
             });
         }
+        if (this.reconnectInterval) {
+            clearInterval(this.reconnectInterval);
+        }
         this.writeEmitter.dispose();
         this.closeEmitter.dispose();
     }
 
-    private static handleData(st: SerialTerminal): (data: Buffer) => void {
-        return (data: Buffer) => {
-            st.loadCursor();
-            st.clearScreen();
-            let stringRepr: string = new TextDecoder('utf-8').decode(data);
-
-            // Checks if data ends on a clean line. Used for layout
-            if (/(?:\r+\n+[\n\r]*)|(?:\n+\r+[\n\r]*)$/.test(stringRepr)) {
-                st.endsWithNewLine = true;
-            } else {
-                st.endsWithNewLine = false;
+    private handleData: (data: Buffer) => void = (data: Buffer) => {
+        this.loadCursor();
+        this.clearScreen();
+        let stringRepr: string = "";
+        if (this.translateHex) {
+            stringRepr = new TextDecoder('utf-8').decode(data);
+        } else {
+            for (let byte of data) {
+                if (this.dimensions && stringRepr.length >= this.dimensions.columns - 3) {
+                    this.writeEmitter.fire("\r\n");
+                }
+                this.writeEmitter.fire(byte.toString(16).padStart(2, "0") + " ");
             }
+        }
 
-            st.writeEmitter.fire(stringRepr);
-            st.saveCursor();
-            st.updateInputArea();
-        };
+        // Checks if data ends on a clean line. Used for layout
+        if (/(?:\r+\n+[\n\r]*)|(?:\n+\r+[\n\r]*)$/.test(stringRepr)) {
+            this.endsWithNewLine = true;
+        } else {
+            this.endsWithNewLine = false;
+        }
+
+        this.writeEmitter.fire(stringRepr);
+        this.saveCursor();
+        this.updateInputArea();
+    };
+
+    private handelDataAsText(data: string) {
+        let thOld = this.translateHex;
+        this.translateHex = true;
+        this.handleData(Buffer.from(data));
+        this.translateHex = thOld;
     }
+
 
     handleInput(data: string) {
         let codes = "";
@@ -136,14 +183,13 @@ export class SerialTerminal implements vscode.Pseudoterminal {
             //// Handle enter
             let enterMatch: RegExpMatchArray | null = enterRegex.exec(data);
             if (enterMatch) {
-
                 if (this.currentInputLine && (this.prevCommands.length <= 0 || this.prevCommands[this.prevCommands.length - 1] !== this.currentInputLine)) {
                     this.prevCommands.push(this.currentInputLine);
                 }
                 if (!this.endsWithNewLine) {
-                    SerialTerminal.handleData(this)(Buffer.from("\r\n"));
+                    this.handelDataAsText("\r\n");
                 }
-                SerialTerminal.handleData(this)(Buffer.from(this.prompt + this.currentInputLine + "\r\n"));
+                this.handelDataAsText(this.prompt + this.currentInputLine + "\r\n");
                 // Check if string is a command
                 let isCommand = false;
                 for (let c of Object.keys(commands)) {
@@ -152,6 +198,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                         isCommand = true;
                     }
                 }
+                // Send to serial if not command
                 if (!isCommand) {
                     this.serial.write(this.currentInputLine + this.lineEnd);
                     this.serial.drain();
@@ -163,7 +210,6 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                 this.updateInputArea();
                 continue;
             }
-
 
             //// Handle backspace
             let backspaceMatch: RegExpMatchArray = backspaceRegex.exec(data) ?? [];
@@ -191,8 +237,6 @@ export class SerialTerminal implements vscode.Pseudoterminal {
                 charsHandled = deleteMatch[0].length;
                 continue;
             }
-
-
 
             //// Handle arrows
             let arrowMatches: RegExpMatchArray = arrowRegex.exec(data) ?? [];
@@ -266,23 +310,25 @@ export class SerialTerminal implements vscode.Pseudoterminal {
             this.inputIndex++;
             this.currentInputLine = this.currentInputLine.substring(0, this.inputIndex - 1) + char + this.currentInputLine.substring(this.inputIndex - 1);
             this.updateInputArea();
-            charsHandled = 1;
+            charsHandled = char.length;
         }
     }
 
     private updateCursor(index: number) {
         index += this.prompt.length;
         this.loadCursor();
+        if (!this.endsWithNewLine){
+            this.moveCursor("d", 1);
+        }
         this.writeEmitter.fire("\r");
         if (this.dimensions) {
             let lineDelta: number = Math.trunc(index / this.dimensions.columns);
-            this.dimensionEmitter.fire({ columns: this.dimensions.columns, rows: this.dimensions.rows + lineDelta });
             this.moveCursor("d", lineDelta);
             this.moveCursor("r", index % this.dimensions.columns);
         } else {
             this.moveCursor("r", index);
         }
-        this.writeEmitter.fire("\u001b[6n");
+        
     }
 
     private moveCursor(direction: "u" | "d" | "l" | "r", amount: number = 1) {
@@ -314,7 +360,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
         if (!this.endsWithNewLine) {
             this.writeEmitter.fire("\r\n");
         }
-        this.writeEmitter.fire("\u001b[6n");
+        
         this.clearScreen();
         this.writeEmitter.fire(this.prompt + this.currentInputLine);
         this.updateCursor(this.inputIndex);
