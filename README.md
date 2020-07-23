@@ -1,6 +1,5 @@
 # Serial terminal for VSCode
 
-This is the README for your extension "serialterminal". After writing up a brief description, we recommend including the following sections.
 
 ## Features
 
