@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { SerialTerminal } from "./serialTerminal";
 import SerialPort = require('serialport');
 import { api } from './api';
-import * as util from './stringUtilities';
+import * as stringUtilities from './util';
 
 // Lookup table for linking vscode terminals to SerialTerminal instances
 export let terminalRegistry: { [key: string]: SerialTerminal } = {};
@@ -47,14 +47,14 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Resolve line terminator
 		let configDLT: string | undefined = wsConfig.get("serialTerminal.defaultLineTerminator");
 		if (configDLT !== undefined && lineEnd === undefined) {
-			lineEnd = util.unescape(configDLT);
+			lineEnd = stringUtilities.unescape(configDLT);
 		}
 		lineEnd = lineEnd ?? "\r\n";
 
 		// Resolve prompt 
 		let configPrompt: string | undefined = wsConfig.get('serialTerminal.defaultPrompt');
 		if (configPrompt !== undefined && prompt === undefined) {
-			prompt = util.unescape(configPrompt);
+			prompt = stringUtilities.unescape(configPrompt);
 		}
 		prompt = prompt ?? ">: ";
 		let st = new SerialTerminal(chosenPortPath, chosenBaud, translateHex, lineEnd, prompt);
@@ -72,7 +72,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		if (st) {
 			let newPrompt = await vscode.window.showInputBox({ placeHolder: "New prompt" });
 			if (newPrompt !== undefined) {
-				newPrompt = util.unescape(newPrompt);
+				newPrompt = stringUtilities.unescape(newPrompt);
 				st.setPrompt(newPrompt);
 			}
 		}
@@ -83,7 +83,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		if (st) {
 			let newLineEnd = await vscode.window.showInputBox({ placeHolder: "New line terminator" });
 			if (newLineEnd !== undefined) {
-				newLineEnd = util.unescape(newLineEnd);
+				newLineEnd = stringUtilities.unescape(newLineEnd);
 				st.setLineEnd(newLineEnd);
 			}
 		}
