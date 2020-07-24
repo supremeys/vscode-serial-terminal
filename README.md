@@ -25,7 +25,7 @@ let api = extensions.getExtension('serialterminal').exports;
 This api exposes the SerialTerminal class which is an implementation of [vscode.Pseudoterminal](https://code.visualstudio.com/api/references/vscode-api#Pseudoterminal) with the constructor
 
 ~~~typescript
-SerialTerminal(COMPort: string, baudRate: number, lineEnd?: string, prompt?: string)
+SerialTerminal(COMPort: string, baudRate: number, translateHex?:boolean, lineEnd?: string, prompt?: string)
 ~~~
 
 ## Known Issues
