@@ -34,6 +34,11 @@
 				"command": "serialterminal.toggleHexTranslation",
 				"title": "Toggle hex translation for active terminal",
 				"category": "Serial terminal"
+			},
+			{
+				"command": "serialterminal.clearTerminal",
+				"title": "Clear active terminal",
+				"category": "Serial terminal"
 			}
 		],
 		"menus": {
@@ -48,6 +53,10 @@
 				},
 				{
 					"command": "serialterminal.toggleHexTranslation",
+					"when": "terminalIsOpen"
+				},
+				{
+					"command": "serialterminal.clearTerminal",
 					"when": "terminalIsOpen"
 				}
 			]

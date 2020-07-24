@@ -96,11 +96,19 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	let clearCommand = vscode.commands.registerCommand('serialterminal.clearTerminal', () => {
+		let st = getActiveSerial();
+		if (st) {
+			st.clear();
+		}
+	});
+
 	context.subscriptions.push(
 		openTerminalCommand,
 		setPromptCommand,
 		setLineEndCommand,
 		toggleHexTranslationCommand,
+		clearCommand
 	);
 
 	//Export api defined in api.ts
@@ -112,7 +120,10 @@ export function deactivate() { }
 
 function getActiveSerial(): SerialTerminal | undefined {
 	let activeTerminal = vscode.window.activeTerminal;
-	if (activeTerminal === undefined) { vscode.window.showErrorMessage("No active terminal"); return; };
+	if (activeTerminal === undefined) {
+		vscode.window.showErrorMessage("No active terminal");
+		return;
+	};
 	if (!Object.keys(terminalRegistry).includes(activeTerminal.name)) {
 		vscode.window.showErrorMessage("Active terminal is not a registered serial terminal");
 		return;
