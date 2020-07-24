@@ -15,6 +15,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		if (!chosenPortPath) {
 			let ports = await SerialPort.list();
 			let portPaths = ports.map(p => p.path);
+			if (portPaths.length < 1) {
+				vscode.window.showErrorMessage("No serial devices found");
+				return;
+			};
 			chosenPortPath = await vscode.window.showQuickPick(portPaths, { placeHolder: "Select port" });
 			if (!chosenPortPath) { return; };
 		}
