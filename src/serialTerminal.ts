@@ -1,6 +1,5 @@
 
 import * as serialPort from 'serialport';
-import SerialPort = require('serialport');
 import { TextDecoder } from 'util';
 import * as vscode from 'vscode';
 
@@ -94,7 +93,7 @@ export class SerialTerminal implements vscode.Pseudoterminal {
             if (Object.keys(err).includes("disconnected") && err.disconnected) { // Device was disconnected, attempt to reconnect
                 this.handleDataAsText(" Device disconnected.");
                 this.reconnectInterval = setInterval(async () => { // Attempt to reopen
-                    let availablePorts = await SerialPort.list();
+                    let availablePorts = await serialPort.list();
                     for (let port of availablePorts) {
                         if (port.path === this.serial.path) {
                             if (!this.endsWithNewLine) { this.handleDataAsText("\r\n"); };
