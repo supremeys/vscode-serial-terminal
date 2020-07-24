@@ -1,7 +1,5 @@
 
-import * as serialPort from 'serialport';
-import SerialPort = require('serialport');
-import { TextDecoder } from 'util';
+import * as SerialPort from 'serialport';
 import * as vscode from 'vscode';
 import { CommandLine } from './commandLine';
 
@@ -37,13 +35,13 @@ let commands: { [key: string]: Command } = {
 export class SerialTerminal extends CommandLine {
 
     // serialPort specific variables
-    private serial: serialPort;
+    private serial: SerialPort;
 
     // Used to automatically attempt to reconnect when device is disconnected
     private reconnectInterval: NodeJS.Timeout | undefined;
 
     constructor(COMPort: string, baudRate: number, translateHex = true, lineEnd?: string, prompt?: string) {
-        let serial: SerialPort = new serialPort(COMPort, {
+        let serial: SerialPort = new SerialPort(COMPort, {
             autoOpen: false,
             baudRate: baudRate,
         });
@@ -61,11 +59,12 @@ export class SerialTerminal extends CommandLine {
             this.serial.open(this.writeError);
         }
         this.serial.on('close', (err) => {
-            this.handleDataAsText("\r\nPort closed.");
+            if (!this.endsWithNewLine) { this.handleDataAsText("\r\n");}
+            this.handleDataAsText("Port closed.");
             if (Object.keys(err).includes("disconnected") && err.disconnected) { // Device was disconnected, attempt to reconnect
                 this.handleDataAsText(" Device disconnected.");
                 this.reconnectInterval = setInterval(async () => { // Attempt to reopen
-                    let availablePorts = await serialPort.list();
+                    let availablePorts = await SerialPort.list();
                     for (let port of availablePorts) {
                         if (port.path === this.serial.path) {
                             if (!this.endsWithNewLine) { this.handleDataAsText("\r\n"); };
