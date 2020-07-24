@@ -334,6 +334,7 @@ export abstract class CommandLine implements vscode.Pseudoterminal {
         this.currentInputLine = "";
         this.writeEmitter.fire("\u001bc");
         this.saveCursor();
+        this.updateInputArea();
     }
 
     protected writeError = (err: Error | null | undefined) => {
