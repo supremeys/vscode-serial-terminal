@@ -340,7 +340,6 @@ export abstract class CommandLine implements vscode.Pseudoterminal {
     protected writeError = (err: Error | null | undefined) => {
         if (err) {
             this.writeEmitter.fire(("An error occured: " + err.message).replace('\n', '\r\n'));
-            this.closeEmitter.fire();
         }
     };
 
