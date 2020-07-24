@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { SerialTerminal } from "./serialTerminal";
 import SerialPort = require('serialport');
 import { api } from './api';
-import * as util from './util';
+import * as util from './stringUtilities';
 
 // Lookup table for linking vscode terminals to SerialTerminal instances
 export let terminalRegistry: { [key: string]: SerialTerminal } = {};
