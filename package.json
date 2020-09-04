@@ -1,5 +1,8 @@
 {
 	"name": "serialterminal",
+	"publisher": "nordic-semiconductor",
+	"author": "Halvor Bjørstad",
+	"repository": "https://github.com/Riphiphip/vscode-serial-terminal",
 	"displayName": "serialterminal",
 	"description": "Serial terminal for vscode",
 	"version": "0.0.1",
@@ -60,8 +63,7 @@
 					"when": "terminalIsOpen"
 				}
 			]
-		}
-		,
+		},
 		"configuration": {
 			"title": "Serial Terminal",
 			"properties": {
