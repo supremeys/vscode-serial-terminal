@@ -3,7 +3,6 @@ import * as vscode from 'vscode';
 import { CommandLine } from './commandLine';
 
 export class SerialTerminal extends CommandLine {
-    // serialPort specific variables
     private serial: SerialPort;
 
     // Used to automatically attempt to reconnect when device is disconnected

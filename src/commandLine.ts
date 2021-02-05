@@ -13,13 +13,6 @@ const gotoEndRegex = /^\033\[([HF])/; //End and Home
 
 const cursorReportRegex = /^\033\[(\d+);(\d+)R/;
 
-// Commands
-interface Command {
-    regex: RegExp;
-    description?: string;
-    func: (...args: any) => void;
-}
-
 export abstract class CommandLine implements vscode.Pseudoterminal {
     // Fire to write to terminal
     protected writeEmitter = new vscode.EventEmitter<string>();
