@@ -1,6 +1,5 @@
-import { SerialTerminal } from "./serialTerminal";
+import { SerialTerminal } from './serialTerminal';
 
-export let api = {
-    SerialTerminal
+export const api = {
+    SerialTerminal,
 };
-

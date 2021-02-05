@@ -1,47 +1,22 @@
-
 import * as SerialPort from 'serialport';
 import * as vscode from 'vscode';
 import { CommandLine } from './commandLine';
 
-// Text manipulation sequences
-const backspaceRegex: RegExp = /^\177/;
-const enterRegex: RegExp = /^\r/;
-const deleteRegex: RegExp = /^\033\[3~/;
-
-// Navigation sequences
-const arrowRegex: RegExp = /^\033\[([ABCD])/;
-const gotoEndRegex: RegExp = /^\033\[([HF])/; //End and Home
-
-const cursorReportRegex: RegExp = /^\033\[(\d+);(\d+)R/;
-
-// Commands
-interface Command {
-    regex: RegExp;
-    description?: string;
-    func: (st: SerialTerminal) => any;
-}
-
-let commands: { [key: string]: Command } = {
-    "clear": {
-        regex: /^(?:clear|cls)$/,
-        func: (st: SerialTerminal) => {
-            st.clear();
-        },
-        description: "Clears the screen"
-    }
-};
-
-
 export class SerialTerminal extends CommandLine {
-
     // serialPort specific variables
     private serial: SerialPort;
 
     // Used to automatically attempt to reconnect when device is disconnected
     private reconnectInterval: NodeJS.Timeout | undefined;
 
-    constructor(COMPort: string, baudRate: number, translateHex = true, lineEnd?: string, prompt?: string) {
-        let serial: SerialPort = new SerialPort(COMPort, {
+    constructor(
+        COMPort: string,
+        baudRate: number,
+        translateHex = true,
+        lineEnd?: string,
+        prompt?: string
+    ) {
+        const serial: SerialPort = new SerialPort(COMPort, {
             autoOpen: false,
             baudRate: baudRate,
         });
@@ -59,25 +34,33 @@ export class SerialTerminal extends CommandLine {
             this.serial.open(this.writeError);
         }
         this.serial.on('close', (err) => {
-            if (!this.endsWithNewLine) { this.handleDataAsText("\r\n");}
-            this.handleDataAsText("Port closed.");
-            if (Object.keys(err).includes("disconnected") && err.disconnected) { // Device was disconnected, attempt to reconnect
-                this.handleDataAsText(" Device disconnected.");
-                this.reconnectInterval = setInterval(async () => { // Attempt to reopen
-                    let availablePorts = await SerialPort.list();
-                    for (let port of availablePorts) {
+            if (!this.endsWithNewLine) {
+                this.handleDataAsText('\r\n');
+            }
+            this.handleDataAsText('Port closed.');
+            if (Object.keys(err).includes('disconnected') && err.disconnected) {
+                // Device was disconnected, attempt to reconnect
+                this.handleDataAsText(' Device disconnected.');
+                this.reconnectInterval = setInterval(async () => {
+                    // Attempt to reopen
+                    const availablePorts = await SerialPort.list();
+                    for (const port of availablePorts) {
                         if (port.path === this.serial.path) {
-                            if (!this.endsWithNewLine) { this.handleDataAsText("\r\n"); };
-                            this.handleDataAsText(`Device reconnected at port ${this.serial.path}.\r\n`);
+                            if (!this.endsWithNewLine) {
+                                this.handleDataAsText('\r\n');
+                            }
+                            this.handleDataAsText(
+                                `Device reconnected at port ${this.serial.path}.\r\n`
+                            );
                             this.serial.open();
                             break;
                         }
                     }
                 }, 1000);
             }
-            this.handleDataAsText("\r\n");
+            this.handleDataAsText('\r\n');
         });
-        this.serial.on('open', (err) => {
+        this.serial.on('open', () => {
             if (this.reconnectInterval) {
                 clearInterval(this.reconnectInterval);
             }
@@ -89,7 +72,7 @@ export class SerialTerminal extends CommandLine {
         if (this.serial.isOpen) {
             this.serial.close((err) => {
                 if (err) {
-                    throw new Error("Could not properly close serial terminal: " + err.message);
+                    throw new Error('Could not properly close serial terminal: ' + err.message);
                 }
             });
         }
