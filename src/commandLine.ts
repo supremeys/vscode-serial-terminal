@@ -2,6 +2,8 @@ import { TextDecoder } from 'util';
 import * as vscode from 'vscode';
 import * as Stream from 'stream';
 
+import * as util from './util';
+
 // Text manipulation sequences
 const backspaceRegex = /^\177/;
 const enterRegex = /^\r/;
@@ -122,7 +124,7 @@ export abstract class CommandLine implements vscode.Pseudoterminal {
                 }
                 this.handleDataAsText(this.prompt + this.currentInputLine + '\r\n');
 
-                this.backendStream.write(this.currentInputLine + this.lineEnd);
+                this.backendStream.write(util.unescape(this.currentInputLine) + this.lineEnd);
 
                 this.prevCommandsIndex = this.prevCommands.length;
                 this.inputIndex = 0;
