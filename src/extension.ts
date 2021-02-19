@@ -121,7 +121,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<typeof
 
     const setPromptCommand = vscode.commands.registerCommand(
         'serialterminal.setPrompt',
-        async () => {
+        async function () {
             const st = getActiveSerial();
             if (st) {
                 let newPrompt = await vscode.window.showInputBox({ placeHolder: 'New prompt' });
@@ -135,7 +135,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<typeof
 
     const setLineEndCommand = vscode.commands.registerCommand(
         'serialterminal.setLineEnd',
-        async () => {
+        async function () {
             const st = getActiveSerial();
             if (st) {
                 let newLineEnd = await vscode.window.showInputBox({
@@ -151,7 +151,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<typeof
 
     const toggleHexTranslationCommand = vscode.commands.registerCommand(
         'serialterminal.toggleHexTranslation',
-        () => {
+        function () {
             const st = getActiveSerial();
             if (st) {
                 st.toggleHexTranslate();
@@ -176,11 +176,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<typeof
 
     //Export api defined in api.ts
     return api;
-}
-
-// this method is called when your extension is deactivated
-export function deactivate(): void {
-    return;
 }
 
 function getActiveSerial(): SerialTerminal | undefined {
