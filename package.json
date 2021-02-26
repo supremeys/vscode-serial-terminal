@@ -81,6 +81,19 @@
 					"description": "Set to true to translate incomming hex data. Set to false to output raw hex.",
 					"type": "boolean",
 					"default": true
+				},
+				"serialTerminal.logFiles": {
+					"description": "Output files for specific serial ports. Item is a semicolon separated list of serial ports, Value is the path to a logfile. Serial data written to terminals connected to the specified ports will also be written to the logfile.",
+					"type": "object",
+					"default":{},
+					"patternProperties": {
+						"^.+$": {
+							"description": "Item: Semicolon separated list of serial ports\nValue: Absolute path to logfile",
+							"type": "string",
+							"format": "uri"
+						}
+					},
+					"additionalProperties": false
 				}
 			}
 		}

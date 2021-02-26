@@ -367,4 +367,20 @@ export abstract class CommandLine implements vscode.Pseudoterminal {
     public toggleHexTranslate(): void {
         this.setHexTranslate(!this.translateHex);
     }
+
+    public addLogStream(stream: Stream.Writable): void {
+        this.backendStream.pipe(stream);
+    }
+
+    public detachLogStream(stream: Stream.Writable): void {
+        this.backendStream.unpipe(stream);
+    }
+
+    public addInputStream(stream: Stream.Readable): void {
+        stream.pipe(this.backendStream);
+    }
+
+    public detachInputStream(stream: Stream.Readable): void {
+        stream.unpipe(this.backendStream);
+    }
 }
