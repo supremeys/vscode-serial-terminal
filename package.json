@@ -85,7 +85,7 @@
 				"serialTerminal.logFiles": {
 					"description": "Output files for specific serial ports. Item is a semicolon separated list of serial ports, Value is the path to a logfile. Serial data written to terminals connected to the specified ports will also be written to the logfile.",
 					"type": "object",
-					"default":{},
+					"default": {},
 					"patternProperties": {
 						"^.+$": {
 							"description": "Item: Semicolon separated list of serial ports\nValue: Absolute path to logfile",
@@ -125,6 +125,9 @@
 		"vscode-test": "^1.5.0"
 	},
 	"dependencies": {
-		"serialport": "^9.0.0"
+		"pc-xterm-lib": "git+https://github.com/NordicPlayground/pc-xterm-lib.git#distributable-build",
+		"serialport": "^9.0.0",
+		"xterm": "^4.10.0",
+		"xterm-addon-fit": "^0.5.0"
 	}
 }
