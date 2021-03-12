@@ -1,11 +1,12 @@
-
+// eslint-disable-next-line no-undef
+const vscode = acquireVsCodeApi();
 // eslint-disable-next-line no-undef
 const term = new Terminal();
 // eslint-disable-next-line no-undef
 const fitAddon = new FitAddon.FitAddon();
 // eslint-disable-next-line no-undef
 const ntc = new PcXtermLib.NrfTerminalCommander({
-    completerFunction: function(){
+    completerFunction: function () {
         return [
             {
                 value: 'my_custom_command',
@@ -13,7 +14,7 @@ const ntc = new PcXtermLib.NrfTerminalCommander({
             }
         ];
     },
-    commands: { },
+    commands: {},
     prompt: 'AT[:lineCount]>',
     showTimestamps: true,
 });
@@ -29,4 +30,14 @@ term.onData(function (data) {
 
 window.addEventListener('resize', function () {
     fitAddon.fit();
+    vscode.postMessage('Window resized!');
+});
+
+window.addEventListener('message', function (event) {
+    switch (event.data.type) {
+        case 'serial-data': {
+            term.write(event.data.message);
+            break;
+        }
+    }
 });

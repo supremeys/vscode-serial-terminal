@@ -3,7 +3,7 @@ import { SerialTerminal } from './serialTerminal';
 import SerialPort = require('serialport');
 import { api } from './api';
 import * as stringUtilities from './util';
-import { createSerialMonitorPanel } from './webviews/webviews';
+import { SerialMonitorPanel } from './webviews/webviews';
 
 // Lookup table for linking vscode terminals to SerialTerminal instances
 export const terminalRegistry: { [key: string]: SerialTerminal } = {};
@@ -106,19 +106,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<typeof
                 prompt = stringUtilities.unescape(configPrompt);
             }
             prompt = prompt ?? '>: ';
-            const st = new SerialTerminal(
-                chosenPortPath,
-                chosenBaud,
-                translateHex,
-                lineEnd,
-                prompt
-            );
-            const terminal = vscode.window.createTerminal({
-                name: `${chosenPortPath} (Baud: ${chosenBaud})`,
-                pty: st,
-            });
-            createSerialMonitorPanel(chosenPortPath, chosenBaud);
-            return terminal;
+
+            const monitorPanel = new SerialMonitorPanel(chosenPortPath, chosenBaud);
+            return monitorPanel;
         }
     );
 
