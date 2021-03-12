@@ -166,12 +166,36 @@ export async function activate(context: vscode.ExtensionContext): Promise<typeof
         }
     });
 
+    const startLoggingCommand = vscode.commands.registerCommand('serialterminal.startLogging', () => {
+        const st = getActiveSerial(); 
+        if (st) {
+            st.startLogging();
+        } 
+    }); 
+
+    const pauseLoggingCommand = vscode.commands.registerCommand('serialterminal.pauseLogging', () => {
+        const st = getActiveSerial(); 
+        if (st) {
+            st.pauseLogging();
+        } 
+    }); 
+
+    const stopLoggingCommand = vscode.commands.registerCommand('serialterminal.stopLogging', () => {
+        const st = getActiveSerial(); 
+        if (st) {
+            st.stopLogging();
+        } 
+    }); 
+
     context.subscriptions.push(
         openTerminalCommand,
         setPromptCommand,
         setLineEndCommand,
         toggleHexTranslationCommand,
-        clearCommand
+        clearCommand,
+        startLoggingCommand,
+        pauseLoggingCommand,
+        stopLoggingCommand
     );
 
     //Export api defined in api.ts

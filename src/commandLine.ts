@@ -4,6 +4,8 @@ import * as Stream from 'stream';
 
 import * as util from './util';
 
+import { Logger } from './logging';
+
 // Text manipulation sequences
 const backspaceRegex = /^\177/;
 const enterRegex = /^\r/;
@@ -38,12 +40,14 @@ export abstract class CommandLine implements vscode.Pseudoterminal {
     private prevCommands: string[] = [];
     private prevCommandsIndex = 0;
 
+    #logger: Logger | undefined;
+
     constructor(
         private backendStream: Stream.Duplex,
         private translateHex: boolean = true,
         private lineEnd: string = '\r\n',
         private prompt: string = '>: '
-    ) {}
+    ) { }
 
     open(initialDimensions: vscode.TerminalDimensions | undefined): void {
         this.dimensions = initialDimensions;
@@ -55,6 +59,7 @@ export abstract class CommandLine implements vscode.Pseudoterminal {
     close(): void {
         this.writeEmitter.dispose();
         this.closeEmitter.dispose();
+        this.stopLogging();
     }
 
     protected handleData: (data: Buffer) => void = (data: Buffer) => {
@@ -374,6 +379,7 @@ export abstract class CommandLine implements vscode.Pseudoterminal {
 
     public detachLogStream(stream: Stream.Writable): void {
         this.backendStream.unpipe(stream);
+        this.backendStream.resume();
     }
 
     public addInputStream(stream: Stream.Readable): void {
@@ -382,5 +388,38 @@ export abstract class CommandLine implements vscode.Pseudoterminal {
 
     public detachInputStream(stream: Stream.Readable): void {
         stream.unpipe(this.backendStream);
+    }
+
+    public startLogging(): void {
+        if (this.#logger && !this.#logger.isPaused){
+            // logger active
+            return;
+        }
+
+        if (!this.#logger){
+            this.#logger = new Logger();
+        }
+        this.#logger.isPaused = false; 
+        this.addLogStream(this.#logger.getWriteableStream());
+    }
+
+    public pauseLogging(): void {
+        if (!this.#logger || this.#logger.isPaused) {
+            return;
+        }
+
+        this.#logger.isPaused = true; 
+        this.detachLogStream(this.#logger.getWriteableStream());  
+    }
+
+    public stopLogging(): void {
+        if (!this.#logger) {
+            // no active logger
+            return;
+        }
+
+        this.detachLogStream(this.#logger.getWriteableStream());
+        this.#logger.endStream();
+        this.#logger = undefined;
     }
 }

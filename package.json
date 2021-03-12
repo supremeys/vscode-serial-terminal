@@ -42,6 +42,21 @@
 				"command": "serialterminal.clearTerminal",
 				"title": "Clear active terminal",
 				"category": "Serial terminal"
+			},
+			{
+				"command": "serialterminal.startLogging",
+				"title": "Start output logging of active terminal",
+				"category": "Serial terminal"
+			},
+			{
+				"command": "serialterminal.pauseLogging",
+				"title": "Pause output logging of active terminal",
+				"category": "Serial terminal"
+			},
+			{
+				"command": "serialterminal.stopLogging",
+				"title": "Stop output logging of active terminal",
+				"category": "Serial terminal"
 			}
 		],
 		"menus": {
@@ -60,6 +75,18 @@
 				},
 				{
 					"command": "serialterminal.clearTerminal",
+					"when": "terminalIsOpen"
+				},
+				{
+					"command": "serialterminal.startLogging",
+					"when": "terminalIsOpen"
+				},
+				{
+					"command": "serialterminal.pauseLogging",
+					"when": "terminalIsOpen"
+				},
+				{
+					"command": "serialterminal.stopLogging",
 					"when": "terminalIsOpen"
 				}
 			]
