@@ -5,7 +5,14 @@ const term = new Terminal();
 const fitAddon = new FitAddon.FitAddon();
 // eslint-disable-next-line no-undef
 const ntc = new PcXtermLib.NrfTerminalCommander({
-    completions: [],
+    completerFunction: function(){
+        return [
+            {
+                value: 'my_custom_command',
+                description: 'Does something interesting',
+            }
+        ];
+    },
     commands: { },
     prompt: 'AT[:lineCount]>',
     showTimestamps: true,
