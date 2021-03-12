@@ -43,6 +43,9 @@ export function createSerialMonitorPanel(COMPort: string, baudRate: number): vsc
         panel.webview.asWebviewUri(
             vscode.Uri.joinPath(nodeModulesRoot, 'xterm', 'css', 'xterm.css')
         ),
+        panel.webview.asWebviewUri(
+            vscode.Uri.joinPath(nodeModulesRoot, 'pc-xterm-lib', 'styles.css')
+        )
     ];
 
     const title = `${COMPort} (Baud: ${baudRate})`;
